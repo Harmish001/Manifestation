@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "android": { "package": "com.harmish.woopgoals" },
     "plugins": [
-      ["expo-build-properties", { "android": { "kotlinVersion": "1.9.25" } }]
+      ["expo-build-properties", { "android": { "kotlinVersion": "1.9.25" } }],
+      "./plugins/withGoalWidget"
     ]
   }
 }
