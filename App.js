@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView, View, Text, TextInput, TouchableOpacity,
-  FlatList, ScrollView, StyleSheet, Alert,
+  FlatList, ScrollView, StyleSheet, Alert, Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 
 const KEY = 'woop_goals_v1';
+const POPUP_KEY = 'woop_popup_v1';
+const SCHEDULE = 'com.harmish.woopgoals.SCHEDULE';
+const native = extras => Linking.sendIntent(SCHEDULE, extras).catch(() => {});
 const today = () => new Date().toISOString().slice(0, 10);
 
 function streak(log) {
@@ -27,15 +30,25 @@ const FIELDS = [
 export default function App() {
   const [goals, setGoals] = useState([]);
   const [adding, setAdding] = useState(false);
+  const [popup, setPopup] = useState(0);
   const [form, setForm] = useState({ wish: '', outcome: '', obstacle: '', plan: '' });
 
   useEffect(() => {
     AsyncStorage.getItem(KEY).then(v => v && setGoals(JSON.parse(v))).catch(() => {});
+    AsyncStorage.getItem(POPUP_KEY).then(v => v && setPopup(Number(v))).catch(() => {});
   }, []);
 
   const save = next => {
     setGoals(next);
-    AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(KEY, JSON.stringify(next))
+      .then(() => native([{ key: 'refresh', value: true }]))
+      .catch(() => {});
+  };
+
+  const setPopupEvery = m => {
+    setPopup(m);
+    AsyncStorage.setItem(POPUP_KEY, String(m)).catch(() => {});
+    native([{ key: 'enable', value: m > 0 }, { key: 'minutes', value: m > 0 ? m : 60 }]);
   };
 
   const addGoal = () => {
@@ -90,6 +103,26 @@ export default function App() {
           data={goals}
           keyExtractor={g => g.id}
           ListEmptyComponent={<Text style={s.hint}>No goals yet. Add one with a real obstacle and plan.</Text>}
+          ListFooterComponent={
+            <View style={s.card}>
+              <Text style={s.wish}>Home-screen reminders</Text>
+              <Text style={s.hint}>Widget: long-press your home screen, tap Widgets, pick WOOP Goals. Tap the widget text to show another goal.</Text>
+              <Text style={s.hint}>Pop-up: shows a random goal over other apps at random times (between the chosen time and double it). Android will ask you to allow "Display over other apps".</Text>
+              <View style={s.row}>
+                {[30, 60, 120].map(m => (
+                  <TouchableOpacity key={m} style={[s.chip, popup === m && s.chipOn]} onPress={() => setPopupEvery(m)}>
+                    <Text style={[s.chipT, popup === m && s.chipTOn]}>~{m} min</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity style={s.btn} onPress={() => native([{ key: 'test', value: true }])}>
+                <Text style={s.btnT}>Show a test pop-up now</Text>
+              </TouchableOpacity>
+              {popup > 0 && (
+                <TouchableOpacity onPress={() => setPopupEvery(0)}><Text style={s.link}>Turn pop-ups off</Text></TouchableOpacity>
+              )}
+            </View>
+          }
           renderItem={({ item: g }) => {
             const done = g.log.includes(today());
             return (
@@ -127,4 +160,9 @@ const s = StyleSheet.create({
   btnDone: { backgroundColor: '#8a8a8a' },
   btnT: { color: '#fff', fontWeight: '600' },
   link: { textAlign: 'center', color: '#a33', marginTop: 10 },
+  row: { flexDirection: 'row', marginVertical: 8 },
+  chip: { borderWidth: 1, borderColor: '#2d5a3d', borderRadius: 20, paddingVertical: 7, paddingHorizontal: 14, marginRight: 8 },
+  chipOn: { backgroundColor: '#2d5a3d' },
+  chipT: { color: '#2d5a3d', fontWeight: '600' },
+  chipTOn: { color: '#fff' },
 });
