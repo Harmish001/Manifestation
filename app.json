@@ -4,7 +4,6 @@
     "slug": "woop-goals",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
     "android": { "package": "com.harmish.woopgoals" }
   }
 }
